@@ -12,6 +12,16 @@ license = "MIT OR Apache-2.0"
 # One-line description shown on crates.io and in `cargo search` results.
 description = "A CLI tool to convert ASCII directory trees into physical file structures."
 
+repository = "https://github.com/NiZaMinius/tree2dir"
+
+homepage = "https://github.com/NiZaMinius/tree2dir"
+
+readme = "README.md"
+
+keywords = ["tui", "cli", "scaffold", "directory-tree"]
+
+categories = ["command-line-utilities", "filesystem"]
+
 # ---------------------------------------------------------------------------
 # Library surface
 #
