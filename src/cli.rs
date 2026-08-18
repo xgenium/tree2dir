@@ -1,0 +1,58 @@
+//! CLI argument definitions and parsing.
+//!
+//! All flags and options are defined as a single [`Cli`] struct using
+//! [`clap`]'s `derive` feature.  Parsing is performed automatically by
+//! [`clap::Parser::parse`] in `main`.
+
+use std::path::PathBuf;
+
+use clap::Parser;
+
+/// tree2dir — convert ASCII / Unicode directory trees into real file structures.
+///
+/// Paste or pipe a `tree`-style listing and let tree2dir recreate the
+/// corresponding directories and files on disk.
+#[derive(Debug, Parser)]
+#[command(
+    name = "tree2dir",
+    version,
+    author,
+    about = "Convert ASCII directory trees into physical file structures.",
+    long_about = None,
+)]
+pub struct Cli {
+    /// Source file containing an ASCII / Unicode directory tree.
+    ///
+    /// When supplied, tree2dir operates in *File Mode* and skips the TUI.
+    #[arg(short = 'f', long = "file", value_name = "PATH")]
+    pub file: Option<PathBuf>,
+
+    /// Target directory in which the structure is generated.
+    ///
+    /// Defaults to the current working directory (`.`).
+    #[arg(short = 'o', long = "output", value_name = "DIR", default_value = ".")]
+    pub output: PathBuf,
+
+    /// Simulate output without touching the disk.
+    ///
+    /// Prints every path that *would* be created, then exits.
+    #[arg(long = "dry-run")]
+    pub dry_run: bool,
+
+    /// Overwrite existing files without prompting.
+    ///
+    /// Without this flag, existing files are skipped with a warning while
+    /// existing directories are silently ignored.
+    #[arg(long = "force")]
+    pub force: bool,
+
+    /// Skip interactive confirmation prompts.
+    #[arg(short = 'y', long = "yes")]
+    pub yes: bool,
+
+    /// Disable the TUI even when running inside an interactive terminal.
+    ///
+    /// Forces plain-text execution mode.
+    #[arg(long = "no-tui")]
+    pub no_tui: bool,
+}
