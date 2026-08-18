@@ -1,0 +1,59 @@
+# === Rust / Cargo ===
+/target/
+**/target/
+Cargo.lock.bak
+# Uncomment if tree2dir is ever split into a workspace with library crates
+# meant to be consumed by others — for a pure binary, keep Cargo.lock committed.
+# Cargo.lock
+.cargo/config.toml
+
+# rustc crash dumps (ICE) — see: https://github.com/rust-lang/rust/issues
+rustc-ice-*.txt
+
+# === Editors / IDEs ===
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+.zed/
+*.swp
+*.swo
+*~
+
+# === OS-specific junk ===
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Linux
+.directory
+.Trash-*
+
+# === Build / tooling artifacts ===
+*.pdb
+*.exe.log
+perf.data
+perf.data.old
+*.profraw
+flamegraph.svg
+
+# === Local environment / secrets ===
+.env
+.env.local
+*.token
+
+# === tree2dir-specific ===
+# Scratch directories created while manually testing --output/--dry-run
+/tmp-test*/
+/test-output*/
+/sandbox/
+
+# Local coverage reports, if cargo-tarpaulin / cargo-llvm-cov is used later
+/coverage/
+/lcov.info

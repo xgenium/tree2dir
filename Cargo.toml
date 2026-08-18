@@ -1,0 +1,72 @@
+[package]
+# The name of the package, matching the binary produced by `cargo build`.
+name = "tree2dir"
+# Semantic version of this release.
+version = "0.1.0"
+# Rust edition — 2021 enables the resolver v2 and all modern idioms.
+edition = "2021"
+# Crate authors (used in --version output via clap).
+authors = ["NiZaMinius"]
+# Dual-licence: consumers may choose either MIT or Apache-2.0.
+license = "MIT OR Apache-2.0"
+# One-line description shown on crates.io and in `cargo search` results.
+description = "A CLI tool to convert ASCII directory trees into physical file structures."
+
+# ---------------------------------------------------------------------------
+# Library surface
+#
+# Exposing a `lib` target alongside the `bin` target allows integration tests
+# (in `tests/`) and downstream consumers to import internal types such as
+# `parser::parse_tree` and `parser::EntryKind` without re-exporting them
+# through main.rs.
+# ---------------------------------------------------------------------------
+[lib]
+name = "tree2dir"
+# `src/lib.rs` is generated automatically if not present; point explicitly to
+# avoid ambiguity when the project also contains `src/main.rs`.
+path = "src/lib.rs"
+
+# ---------------------------------------------------------------------------
+# Production dependencies
+# ---------------------------------------------------------------------------
+[dependencies]
+# ratatui — TUI rendering framework used in Interactive Mode.
+ratatui = "0.26"
+
+# crossterm — cross-platform terminal backend: raw mode, event polling,
+# cursor control, and colour output.
+crossterm = "0.27"
+
+# clap (with `derive`) — declarative CLI argument parsing via proc-macros.
+clap = { version = "4.4", features = ["derive"] }
+
+# arboard — cross-platform system clipboard read/write (Ctrl+V paste).
+arboard = "3.3"
+
+# anyhow — ergonomic error propagation for application-level code.
+anyhow = "1.0"
+
+# thiserror — derive macro for structured, typed error definitions in the
+# library core (`src/error.rs`).
+thiserror = "2.0"
+
+# is-terminal — reliable detection of whether a file descriptor is connected
+# to an interactive TTY, used to choose between TUI and Pipe modes.
+is-terminal = "0.4"
+
+# ---------------------------------------------------------------------------
+# Development dependencies
+# (only compiled when running `cargo test` or `cargo bench`)
+# ---------------------------------------------------------------------------
+[dev-dependencies]
+# assert_cmd — ergonomic integration testing of CLI binaries; spawns the
+# compiled binary and asserts on its exit status and stdout/stderr.
+assert_cmd = "2.0"
+
+# predicates — composable boolean predicates used alongside assert_cmd for
+# flexible output matching (e.g., `contains`, `is_match`).
+predicates = "3.0"
+
+# tempfile — creates temporary directories and files that are automatically
+# cleaned up after each test, preventing test pollution.
+tempfile = "3.8"
