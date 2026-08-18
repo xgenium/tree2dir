@@ -1,0 +1,97 @@
+name: Release
+
+# Manual only, on purpose: the tag and GitHub release are created at the very
+# end of this workflow, and only if every OS in the build matrix succeeded.
+# That means there is never a "broken" tag to delete — if a leg fails, fix
+# the code, push, and re-run this workflow with the same tag input. Nothing
+# needs to be cleaned up first.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to release, e.g. v0.1.0"
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: tree2dir
+            asset: tree2dir-linux-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: tree2dir
+            asset: tree2dir-macos-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: tree2dir.exe
+            asset: tree2dir-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --release --target ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "dist/${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+
+  # Only reached if every "build" matrix leg above succeeded.
+  tag-and-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create tag if it doesn't already exist
+        run: |
+          if ! git rev-parse "${{ inputs.tag }}" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "${{ inputs.tag }}"
+            git push origin "${{ inputs.tag }}"
+          fi
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Re-run after a previous partial success: overwrite assets in place.
+            gh release upload "${{ inputs.tag }}" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "${{ inputs.tag }}" dist/* \
+              --title "${{ inputs.tag }}" --generate-notes --repo "$GITHUB_REPOSITORY"
+          fi
