@@ -1,0 +1,7 @@
+my-app/
+├── src/
+│   ├── main.rs
+│   └── config.rs
+├── tests/
+│   └── integration.rs
+└── README.md
