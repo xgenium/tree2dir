@@ -201,14 +201,11 @@ fn create_directory(
         return Ok(());
     }
 
-    // Silently ignore directories that already exist.
-    if path.is_dir() {
-        return Ok(());
+    // If path already exists we only write a comment to it if specified so
+    if !path.is_dir() {
+        fs::create_dir_all(path).map_err(|e| AppError::io(path, e))?;
+        stats.dirs_created += 1;
     }
-
-    fs::create_dir_all(path).map_err(|e| AppError::io(path, e))?;
-    stats.dirs_created += 1;
-
     if opts.dir_comments {
         if let Some(comment_str) = comment.as_deref().filter(|s| !s.is_empty()) {
             let comment_path = &path.join("COMMENT.md");
