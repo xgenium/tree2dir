@@ -40,6 +40,12 @@ pub struct BuildOptions {
     pub dry_run: bool,
     /// When `true`, overwrite existing files rather than skipping them.
     pub force: bool,
+    /// When `true`, write file description as a comment
+    /// (e.g. '-main.rs # Comment 1' will convert to '// Comment 1' in main.rs).
+    pub file_comments: bool,
+    /// When `true`, write dir description in README.md in that dir
+    /// (e.g. '-src/ # Comment 1' will convert to '# Comment 1' in src/README.md).
+    pub dir_comments: bool,
 }
 
 /// Build a filesystem structure from a flat list of [`TreeNode`] values.
@@ -64,10 +70,10 @@ pub fn build(nodes: &[TreeNode], opts: &BuildOptions) -> Result<BuildStats, AppE
     let mut stats = BuildStats::default();
     let resolved = resolve_paths(nodes, &opts.output_root)?;
 
-    for (full_path, kind, _name, _indent) in resolved {
+    for (full_path, kind, _name, _indent, comment) in resolved {
         match kind {
-            EntryKind::Dir => create_directory(&full_path, opts, &mut stats)?,
-            EntryKind::File => create_file(&full_path, opts, &mut stats)?,
+            EntryKind::Dir => create_directory(&full_path, opts, &mut stats, comment)?,
+            EntryKind::File => create_file(&full_path, opts, &mut stats, comment)?,
         }
     }
 
@@ -77,6 +83,56 @@ pub fn build(nodes: &[TreeNode], opts: &BuildOptions) -> Result<BuildStats, AppE
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+fn is_commentable<P: AsRef<Path>>(path: P) -> bool {
+    // List of extensions that don't support arbitrary text or comments
+    const RESTRICTED_EXTENSIONS: &[&str] = &[
+        // Archives and compressed
+        "zip", "tar", "gz", "tgz", "7z", "rar", "bz2",
+        // Executables and binaries
+        "exe", "dll", "so", "bin", "o", "obj",
+        // Bytecode
+        "class", "pyc", "wasm",
+        // Media containers (raw payloads)
+        "png", "jpg", "jpeg", "mp3", "mp4", "mkv",
+        // Databases
+        "sqlite",
+    ];
+
+    path.as_ref()
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext_str| {
+            let lower = ext_str.to_lowercase();
+            !RESTRICTED_EXTENSIONS.contains(&lower.as_str())
+        })
+        .unwrap_or(false)
+}
+
+fn format_comment<P: AsRef<Path>>(path: P, comment: String) -> String {
+    let ext = path.as_ref()
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    match ext.as_str() {
+        // Markup and documentation formats -> <!-- comment -->
+        "html" | "xml" | "svg" | "md" => format!("<!-- {comment} -->"),
+
+        // Scripting, config, and shell formats -> # comment
+        "py" | "sh" | "bash" | "rb" | "yml" | "yaml" | "toml" | "ini" => format!("# {comment}"),
+
+        // SQL, Lua, Haskell -> -- comment
+        "sql" | "lua" | "hs" => format!("-- {comment}"),
+
+        // C-style languages (Rust, JS, TS, C++, Java, Go, etc.) -> // comment
+        "rs" | "js" | "ts" | "c" | "cpp" | "h" | "hpp" | "java" | "go" | "cs" | "php" => format!("// {comment}"),
+
+        // Default fallback for unknown types
+        _ => format!("// {comment}"),
+    }
+}
 
 fn ensure_within_root(full_path: &Path, root: &Path) -> Result<(), AppError> {
     let root_c: Vec<_> = root.components().collect();
@@ -90,7 +146,7 @@ fn ensure_within_root(full_path: &Path, root: &Path) -> Result<(), AppError> {
 fn resolve_paths(
     nodes: &[TreeNode],
     root: &Path,
-) -> Result<Vec<(PathBuf, EntryKind, String, usize)>, AppError> {
+) -> Result<Vec<(PathBuf, EntryKind, String, usize, Option<String>)>, AppError> {
     let mut stack: Vec<(usize, PathBuf)> = vec![(0, root.to_path_buf())];
     let mut paths = Vec::with_capacity(nodes.len());
 
@@ -127,6 +183,7 @@ fn resolve_paths(
             node.kind.clone(),
             node.name.clone(),
             indent_level,
+            node.comment.clone(),
         ));
     }
     Ok(paths)
@@ -136,6 +193,7 @@ fn create_directory(
     path: &Path,
     opts: &BuildOptions,
     stats: &mut BuildStats,
+    comment: Option<String>,
 ) -> Result<(), AppError> {
     if opts.dry_run {
         println!("  [dry-run] 📁 {}", path.display());
@@ -150,10 +208,20 @@ fn create_directory(
 
     fs::create_dir_all(path).map_err(|e| AppError::io(path, e))?;
     stats.dirs_created += 1;
+
+    if opts.dir_comments {
+        if let Some(comment_str) = comment.as_deref().filter(|s| !s.is_empty()) {
+            let comment_path = &path.join("COMMENT.md");
+            if !comment_path.exists() {
+                fs::write(comment_path, comment_str).map_err(|e| AppError::io(comment_path, e))?;
+            }
+        }
+    }
+
     Ok(())
 }
 
-fn create_file(path: &Path, opts: &BuildOptions, stats: &mut BuildStats) -> Result<(), AppError> {
+fn create_file(path: &Path, opts: &BuildOptions, stats: &mut BuildStats, comment: Option<String>) -> Result<(), AppError> {
     if opts.dry_run {
         println!("  [dry-run] 📄 {}", path.display());
         stats.files_created += 1;
@@ -176,7 +244,13 @@ fn create_file(path: &Path, opts: &BuildOptions, stats: &mut BuildStats) -> Resu
         fs::create_dir_all(parent).map_err(|e| AppError::io(parent, e))?;
     }
 
-    fs::write(path, b"").map_err(|e| AppError::io(path, e))?;
+    let to_write = comment
+        .as_deref()
+        .filter(|_| opts.file_comments)
+        .filter(|s| !s.is_empty() && is_commentable(path))
+        .map(|s| format_comment(path, s.to_string()))
+        .unwrap_or_default();
+    fs::write(path, to_write).map_err(|e| AppError::io(path, e))?;
     stats.files_created += 1;
     Ok(())
 }
@@ -224,14 +298,17 @@ pub fn print_summary(
 
 fn print_tree(nodes: &[TreeNode], root: &Path, _depth: usize, indent: &str) {
     if let Ok(resolved) = resolve_paths(nodes, root) {
-        for (_full_path, kind, name, indent_level) in resolved {
+        for (_full_path, kind, name, indent_level, comment) in resolved {
             let display_indent = "  ".repeat(indent_level);
             let connector = if kind == EntryKind::Dir {
                 "├── 📁"
             } else {
                 "├── 📄"
             };
-            println!("{indent}{display_indent}{connector} {name}");
+            let comment_str = comment
+                .map(|s| format!("\t# {s}"))
+                .unwrap_or_default();
+            println!("{indent}{display_indent}{connector} {name}{comment_str}");
         }
     }
 }

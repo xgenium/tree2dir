@@ -28,15 +28,18 @@ pub struct TreeNode {
     pub name: String,
     /// Whether this node represents a directory or a file.
     pub kind: EntryKind,
+    /// Optional comment field
+    pub comment: Option<String>,
 }
 
 impl TreeNode {
     /// Construct a new [`TreeNode`].
-    pub fn new(depth: usize, name: impl Into<String>, kind: EntryKind) -> Self {
+    pub fn new(depth: usize, name: impl Into<String>, kind: EntryKind, comment: Option<String>) -> Self {
         Self {
             depth,
             name: name.into(),
             kind,
+            comment,
         }
     }
 }

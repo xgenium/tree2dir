@@ -55,4 +55,16 @@ pub struct Cli {
     /// Forces plain-text execution mode.
     #[arg(long = "no-tui")]
     pub no_tui: bool,
+
+    /// Save comments after dir names into COMMENT.md in that dirs
+    #[arg(long = "with-dir-comments")]
+    pub dir_comments: bool,
+
+    /// Save comments after file names as a comment in that files
+    #[arg(long = "with-file-comments")]
+    pub file_comments: bool,
+
+    /// Save comments after dir and file names
+    #[arg(long = "with-comments")]
+    pub with_comments: bool,
 }

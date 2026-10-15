@@ -59,6 +59,11 @@ pub fn split_prefix(line: &str) -> Option<(usize, &str)> {
 ///
 /// Lines that are blank or begin with `#` (after trimming) are silently
 /// skipped.
+///
+/// If user wants to preserve comments (for files, directories, or both), then
+/// lines that contain directory/file name AND '#' are splitted in two parts:
+/// name and comment. Comment is either written to a file as a comment (if
+/// possible; e.g. you can't add comments to .zip) or as a COMMENT.md to a directory.
 pub fn parse_tree(input: &str) -> Vec<TreeNode> {
     // Collect only the lines we will actually process, retaining their
     // original text so the lookahead can inspect the *next* line's depth.
@@ -80,10 +85,12 @@ pub fn parse_tree(input: &str) -> Vec<TreeNode> {
             continue;
         };
 
-        // Determine whether this entry is a directory or a file.
-        let (clean_name, kind) = classify_entry(raw_name, i, &meaningful, depth);
+        let (dir_name, comment) = parse_dir_and_comment(raw_name);
 
-        nodes.push(TreeNode::new(depth, clean_name, kind));
+        // Determine whether this entry is a directory or a file.
+        let (clean_name, kind) = classify_entry(&dir_name, i, &meaningful, depth);
+
+        nodes.push(TreeNode::new(depth, clean_name, kind, comment));
     }
 
     nodes
@@ -117,6 +124,36 @@ fn classify_entry<'a>(
 
     // Rule 3 — default: treat as a regular file.
     (raw_name, EntryKind::File)
+}
+
+pub fn parse_dir_and_comment(line: &str) -> (String, Option<String>) {
+    // Handle quoted paths (in case directory names contain spaces)
+    if line.starts_with('"') || line.starts_with('\'') {
+        let quote_char = line.chars().next().unwrap();
+        if let Some(end_quote_idx) = line[1..].find(quote_char) {
+            let actual_end = end_quote_idx + 1;
+            let dir = line[1..actual_end].to_string();
+            let remainder = line[actual_end + 1..].trim();
+
+            let comment = if remainder.starts_with('#') {
+                let c = remainder[1..].trim();
+                if c.is_empty() { None } else { Some(c.to_string()) }
+            } else {
+                None
+            };
+            return (dir, comment);
+        }
+    }
+
+    // Unquoted paths (find ' #' - preceded by whitespace)
+    if let Some((dir, comment)) = line.split_once(" #") {
+        let dir = dir.trim().to_string();
+        let comment = comment.trim();
+        let comment = if comment.is_empty() { None } else { Some(comment.to_string()) };
+        (dir, comment)
+    } else {
+        (line.to_string(), None)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -184,5 +221,14 @@ mod tests {
         assert_eq!(nodes.len(), 2);
         assert_eq!(nodes[0].name, "root");
         assert_eq!(nodes[1].name, "a.txt");
+    }
+
+    #[test]
+    fn parse_comments_after_path() {
+        let input = "root/  # root comment\n   │   \n├── a.txt\n   │   \n├── b.txt  # txt comment";
+        let nodes = parse_tree(input);
+        assert_eq!(nodes[0].comment, Some("root comment".to_string()));
+        assert_eq!(nodes[1].comment, None);
+        assert_eq!(nodes[2].comment, Some("txt comment".to_string()));
     }
 }

@@ -51,6 +51,8 @@ pub fn run() -> anyhow::Result<()> {
         output_root: cli.output.clone(),
         dry_run: cli.dry_run,
         force: cli.force,
+        file_comments: cli.file_comments || cli.with_comments,
+        dir_comments: cli.dir_comments || cli.with_comments,
     };
 
     if cli.dry_run {
