@@ -52,6 +52,10 @@ Done in 2.5ms. Created 3 directories and 4 files.
   (path-traversal guard), skips existing files unless `--force` is passed,
   and supports `--dry-run` to preview without touching disk.
 - **Fast** — typical trees build in single-digit milliseconds.
+- **Save comments** — inline comments with path name are saved in files as
+  comments or in directories in COMMENT.md. Use `--with-dir-comments` for
+  directory comments, `--with-file-comments` for file comments, `--with-comments`
+  for both.
 
 ## Install
 
@@ -97,6 +101,11 @@ tree2dir --file structure.txt --output ./my-project
 | `--force` | Overwrite files that already exist |
 | `-y, --yes` | Skip the confirmation prompt |
 | `--no-tui` | Never launch the TUI, even in an interactive terminal |
+| `--with-dir-comments` | Save inline comments after directory name in
+  COMMENT.md in that directory |
+| `--with-file-comments` | Save inline comments after file name as a comment
+  that file (excluding binaries, compressed files etc) |
+| `--with-comments` | Save both path and file comments |
 
 ## TUI keybindings
 
