@@ -43,7 +43,7 @@ pub struct BuildOptions {
     /// When `true`, write file description as a comment
     /// (e.g. '-main.rs # Comment 1' will convert to '// Comment 1' in main.rs).
     pub file_comments: bool,
-    /// When `true`, write dir description in README.md in that dir
+    /// When `true`, write dir description in COMMENT.md in that dir
     /// (e.g. '-src/ # Comment 1' will convert to '# Comment 1' in src/README.md).
     pub dir_comments: bool,
 }
